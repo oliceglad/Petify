@@ -82,6 +82,13 @@ const PetDetailsPage = () => {
     () => (events || []).filter((event) => event.pet_id === petId),
     [events, petId],
   )
+  const sortedPetEvents = useMemo(
+    () =>
+      [...petEvents].sort((a, b) =>
+        dayjs(a.start_at).isAfter(dayjs(b.start_at)) ? 1 : -1,
+      ),
+    [petEvents],
+  )
 
   const handlePrefSubmit = async (e) => {
     e.preventDefault()
@@ -122,6 +129,15 @@ const PetDetailsPage = () => {
   if (isLoading) return <p className="muted">Загружаем данные...</p>
   if (isError) return <p className="error">Питомец не найден</p>
 
+  const recordTypeOptions = [
+    'Вакцинация',
+    'Осмотр',
+    'Лаборатория',
+    'Лечение',
+    'Прививка',
+  ]
+  const petAvatar = pet?.name?.slice(0, 1)?.toUpperCase() ?? '?'
+
   return (
     <div className="stack">
       <div className="breadcrumb">
@@ -130,8 +146,9 @@ const PetDetailsPage = () => {
         <strong>{pet?.name}</strong>
       </div>
 
-      <section className="card">
-        <div className="section-header">
+      <section className="card pet-hero">
+        <div className="pet-identity">
+          <div className="avatar">{petAvatar}</div>
           <div>
             <p className="eyebrow">Питомец</p>
             <h2>{pet.name}</h2>
@@ -139,15 +156,18 @@ const PetDetailsPage = () => {
               {pet.species} · {pet.breed || 'порода не указана'}
             </p>
           </div>
-          <div className="pill">
+        </div>
+        <div className="hero-stats">
+          {pet.birth_date && (
+            <span className="chip glow">ДР: {pet.birth_date}</span>
+          )}
+          <span className="chip subtle">ID: {pet.id}</span>
+          <span className="pill muted">
             Создано {dayjs(pet.created_at).format('DD MMM YYYY')}
-          </div>
+          </span>
         </div>
         {pet.notes && <p className="muted">{pet.notes}</p>}
-        <div className="chips">
-          {pet.birth_date && <span className="chip">ДР: {pet.birth_date}</span>}
-          <span className="chip subtle">ID: {pet.id}</span>
-        </div>
+        <div className="gradient-line" />
       </section>
 
       <div className="grid two">
@@ -257,12 +277,18 @@ const PetDetailsPage = () => {
           <form className="form-grid" onSubmit={handleHealthCreate}>
             <label className="field">
               <span>Тип записи</span>
-              <input
+              <select
                 value={healthForm.record_type}
                 onChange={(e) =>
                   setHealthForm({ ...healthForm, record_type: e.target.value })
                 }
-              />
+              >
+                {recordTypeOptions.map((type) => (
+                  <option key={type} value={type}>
+                    {type}
+                  </option>
+                ))}
+              </select>
             </label>
             <label className="field">
               <span>Заголовок</span>
@@ -298,26 +324,31 @@ const PetDetailsPage = () => {
               {addingHealth ? 'Сохраняем...' : 'Добавить запись'}
             </button>
           </form>
-          <div className="list">
+          <div className="timeline">
             {healthRecords.map((record) => (
-              <div key={record.id} className="list-item">
-                <div>
-                  <p className="badge">{record.record_type}</p>
+              <div key={record.id} className="timeline-item">
+                <div className="timeline-dot" />
+                <div className="timeline-content">
+                  <div className="timeline-row">
+                    <span className="badge accent">{record.record_type}</span>
+                    {record.record_date && (
+                      <span className="badge subtle">{record.record_date}</span>
+                    )}
+                  </div>
                   <strong>{record.title}</strong>
                   {record.details && <p className="muted">{record.details}</p>}
-                  {record.record_date && (
-                    <p className="muted">Дата: {record.record_date}</p>
-                  )}
+                  <div className="inline-actions">
+                    <button
+                      className="btn ghost"
+                      type="button"
+                      onClick={() =>
+                        deleteHealthRecord({ recordId: record.id, petId })
+                      }
+                    >
+                      Удалить
+                    </button>
+                  </div>
                 </div>
-                <button
-                  className="btn ghost"
-                  type="button"
-                  onClick={() =>
-                    deleteHealthRecord({ recordId: record.id, petId })
-                  }
-                >
-                  Удалить
-                </button>
               </div>
             ))}
             {healthRecords.length === 0 && (
@@ -403,19 +434,21 @@ const PetDetailsPage = () => {
             </button>
           </form>
           <div className="list">
-            {petEvents.map((event) => (
-              <div key={event.id} className="list-item">
-                <div>
-                  <p className="badge">{event.type}</p>
-                  <strong>{event.title}</strong>
-                  <p className="muted">
-                    {dayjs(event.start_at).format('DD MMM, HH:mm')}
-                  </p>
-                  {event.location && (
-                    <p className="muted">Локация: {event.location}</p>
-                  )}
-                  <p className={`status ${event.status}`}>{event.status}</p>
+            {sortedPetEvents.map((event) => (
+              <div key={event.id} className="event-card">
+                <div className="event-head">
+                  <span className="badge accent">{event.type}</span>
+                  <span className={`status ${event.status}`}>
+                    {event.status}
+                  </span>
                 </div>
+                <strong>{event.title}</strong>
+                <p className="muted">
+                  {dayjs(event.start_at).format('DD MMM, HH:mm')}
+                </p>
+                {event.location && (
+                  <p className="muted">Локация: {event.location}</p>
+                )}
                 <div className="inline-actions">
                   <button
                     className="btn ghost"
@@ -434,7 +467,7 @@ const PetDetailsPage = () => {
                 </div>
               </div>
             ))}
-            {petEvents.length === 0 && (
+            {sortedPetEvents.length === 0 && (
               <p className="muted">
                 У этого питомца пока нет событий. Запланируйте прогулку или визит.
               </p>

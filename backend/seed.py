@@ -94,8 +94,10 @@ async def seed_test_data(session: AsyncSession) -> None:
     session.add(
         HealthRecord(
             pet_id=pet1.id,
+            record_type="vaccination",
             title="Вакцинация",
             details="Комплексная вакцина",
+            record_date=datetime.utcnow().date().isoformat(),
             created_at=datetime.utcnow(),
         )
     )
